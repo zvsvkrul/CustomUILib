@@ -669,8 +669,6 @@ function Library:CreateWindow(options)
         return Category
     end
 
-    end
-
     Library.HUD = {}
     local HUDContainer = Instance.new("Frame")
     HUDContainer.Name = "HUDContainer"

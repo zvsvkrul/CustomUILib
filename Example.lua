@@ -1,4 +1,4 @@
-local Library = loadstring(readfile("CustomUILib/Library.lua"))()
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/zvsvkrul/CustomUILib/refs/heads/main/Library.lua"))()
 
 local Window = Library:CreateWindow({
     Name = "Client Menu"
