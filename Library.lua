@@ -138,16 +138,50 @@ function Library:CreateWindow(options)
         SearchText = ""
     }
     
+    local guiName = options.Name or "CustomUILib"
+    
+    -- Cleanup existing GUIs
+    local successCore, oldCore = pcall(function() return CoreGui:FindFirstChild(guiName) end)
+    if successCore and oldCore then oldCore:Destroy() end
+    
+    local oldPlayer = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild(guiName)
+    if oldPlayer then oldPlayer:Destroy() end
+    local Lighting = game:GetService("Lighting")
+    local oldBlur = Lighting:FindFirstChild(guiName .. "Blur")
+    if oldBlur then oldBlur:Destroy() end
+    
     local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = options.Name or "CustomUILib"
+    ScreenGui.Name = guiName
     ScreenGui.ResetOnSpawn = false
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+    ScreenGui.DisplayOrder = 999999
     ProtectGui(ScreenGui)
     
     local success = pcall(function() ScreenGui.Parent = CoreGui end)
     if not success then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
     
+    local Blur = Instance.new("BlurEffect")
+    Blur.Name = guiName .. "Blur"
+    Blur.Size = 15
+    Blur.Parent = Lighting
+    
+    local DarkBg = Instance.new("Frame")
+    DarkBg.Name = "DarkBg"
+    DarkBg.Parent = ScreenGui
+    DarkBg.BackgroundColor3 = Color3.new(0, 0, 0)
+    DarkBg.BackgroundTransparency = 0.4
+    DarkBg.Size = UDim2.new(1, 0, 1, 0)
+    DarkBg.ZIndex = -1
+    
     Window.ScreenGui = ScreenGui
+    Window.ToggleKey = Enum.KeyCode.RightControl
+    
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if not gameProcessed and input.KeyCode == Window.ToggleKey then
+            ScreenGui.Enabled = not ScreenGui.Enabled
+            Blur.Enabled = ScreenGui.Enabled
+        end
+    end)
 
     local ColumnsContainer = Instance.new("Frame")
     ColumnsContainer.Name = "ColumnsContainer"

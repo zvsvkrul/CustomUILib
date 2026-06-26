@@ -1,69 +1,53 @@
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/zvsvkrul/CustomUILib/refs/heads/main/Library.lua"))()
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/zvsvkrul/CustomUILib/refs/heads/main/Library.lua?t=" .. tostring(tick())))()
 
 local Window = Library:CreateWindow({
-    Name = "Client Menu"
+    Name = "My Roblox Menu"
 })
 
 -- Build Categories
+local PlayerCat = Window:AddCategory({ Title = "LocalPlayer", Icon = Library.Icons.Player })
 local CombatCat = Window:AddCategory({ Title = "Combat", Icon = Library.Icons.Combat })
-local MovementCat = Window:AddCategory({ Title = "Movement", Icon = Library.Icons.Movement })
 local RenderCat = Window:AddCategory({ Title = "Render", Icon = Library.Icons.Render })
-local PlayerCat = Window:AddCategory({ Title = "Player", Icon = Library.Icons.Player })
-local MiscCat = Window:AddCategory({ Title = "Misc", Icon = Library.Icons.Misc })
 
--- Add Modules to Combat
-local AuraModule = CombatCat:AddModule({ Name = "Aura", Default = true })
-AuraModule:AddSlider("Range", { Default = 3, Min = 1, Max = 6, Rounding = 1 })
-AuraModule:AddDropdown("Mode", { Values = {"Single", "Switch", "Multi"}, Default = "Switch", Multi = false })
+-- LocalPlayer Category Modules
+local WalkSpeedMod = PlayerCat:AddModule({ Name = "WalkSpeed", Default = false })
+WalkSpeedMod:AddSlider("Speed", { Default = 16, Min = 16, Max = 100, Rounding = 0, Callback = function(val)
+    local char = game.Players.LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") then
+        char.Humanoid.WalkSpeed = val
+    end
+end})
 
-local AutoArmorModule = CombatCat:AddModule({ Name = "AutoArmor", Default = false })
-local VelocityModule = CombatCat:AddModule({ Name = "Velocity", Default = true })
-VelocityModule:AddSlider("Horizontal", { Default = 0, Min = 0, Max = 100, Rounding = 0 })
-VelocityModule:AddSlider("Vertical", { Default = 0, Min = 0, Max = 100, Rounding = 0 })
+local JumpPowerMod = PlayerCat:AddModule({ Name = "JumpPower", Default = false })
+JumpPowerMod:AddSlider("Power", { Default = 50, Min = 50, Max = 200, Rounding = 0, Callback = function(val)
+    local char = game.Players.LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") then
+        char.Humanoid.UseJumpPower = true
+        char.Humanoid.JumpPower = val
+    end
+end})
 
-local CriticalsModule = CombatCat:AddModule({ Name = "Criticals", Default = false })
-CriticalsModule:AddToggle("Only when falling", { Default = true })
-CriticalsModule:AddToggle("Packet mode", { Default = false })
+local InfiniteJump = PlayerCat:AddModule({ Name = "Infinite Jump", Default = false })
 
--- Add Modules to Movement
-local SprintModule = MovementCat:AddModule({ Name = "Sprint", Default = true })
-local SpeedModule = MovementCat:AddModule({ Name = "Speed", Default = false })
-SpeedModule:AddSlider("Value", { Default = 1.5, Min = 1, Max = 5, Rounding = 1 })
-SpeedModule:AddDropdown("Mode", { Values = {"Vanilla", "NCP", "Hypixel", "Matrix"}, Default = "Vanilla" })
+-- Combat Category Modules
+local AimbotMod = CombatCat:AddModule({ Name = "Aimbot", Default = false })
+AimbotMod:AddDropdown("Target Part", { Values = {"Head", "HumanoidRootPart", "Torso"}, Default = "Head" })
+AimbotMod:AddToggle("Show FOV", { Default = true })
+AimbotMod:AddSlider("FOV Size", { Default = 100, Min = 10, Max = 500, Rounding = 0 })
 
-local FlyModule = MovementCat:AddModule({ Name = "Fly", Default = false })
-local StepModule = MovementCat:AddModule({ Name = "Step", Default = false })
-local SafeWalkModule = MovementCat:AddModule({ Name = "SafeWalk", Default = true })
+local ESPMod = RenderCat:AddModule({ Name = "ESP", Default = true })
+ESPMod:AddToggle("Boxes", { Default = true })
+ESPMod:AddToggle("Names", { Default = true })
+ESPMod:AddToggle("Health", { Default = false })
+ESPMod:AddDropdown("Color Mode", { Values = {"Team", "Custom"}, Default = "Team" })
 
--- HUD Elements setup
+-- HUD Elements setup (Keeping the watermark)
 Library.HUD:SetWatermark({
-    Name = "nameclient",
-    Server = "localhost",
+    Name = "RobloxClient",
+    Server = "Public",
     FPS = "60 fps"
 })
 
-local KeysList = Library.HUD:AddList("Клавиши", { Icon = Library.Icons.Combat })
-KeysList:AddItem("Aura", "[R]", Library.Theme.TextDim)
-KeysList:AddItem("Sprint", "[V]", Library.Theme.TextDim)
-
-local StaffList = Library.HUD:AddList("Персонал", { Icon = Library.Icons.Player })
-StaffList:AddItem("admin", "atomskycode", Library.Theme.TextDim)
-
-local EffectsList = Library.HUD:AddList("Эффекты", { Icon = Library.Icons.Misc })
-EffectsList:AddItem("Speed II", "01:30", Library.Theme.Accent)
-
-local EventsList = Library.HUD:AddList("События", { Icon = Library.Icons.Misc })
-EventsList:AddItem("AirDrop", "04:55", Library.Theme.Accent)
-
--- Target HUD
-Library.HUD:SetTarget({
-    Name = "atomskycode",
-    Distance = "3.2",
-    Health = 80,
-    MaxHealth = 100,
-    Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
-})
-
 -- Load Config
-Library.SaveManager:SetFolder("MyClientConfigs")
+Library.SaveManager:SetFolder("RobloxClientConfigs")
 -- Library.SaveManager:Load("default")
