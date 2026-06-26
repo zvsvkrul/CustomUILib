@@ -217,17 +217,54 @@ function Library:CreateWindow(options)
         end
     end)
     
-    -- Loading animation
-    DarkBg.BackgroundTransparency = 1
+    -- Custom Loading Screen
+    local LoadingFrame = Instance.new("Frame")
+    LoadingFrame.Name = "LoadingScreen"
+    LoadingFrame.Parent = ScreenGui
+    AssignTheme(LoadingFrame, "BackgroundColor3", "Background")
+    LoadingFrame.Size = UDim2.new(1, 0, 1, 0)
+    LoadingFrame.ZIndex = 1000
+    
+    local LoadingText = Instance.new("TextLabel")
+    LoadingText.Parent = LoadingFrame
+    LoadingText.BackgroundTransparency = 1
+    LoadingText.Size = UDim2.new(1, 0, 1, 0)
+    LoadingText.Font = Enum.Font.GothamMedium
+    LoadingText.Text = "Loading UI..."
+    AssignTheme(LoadingText, "TextColor3", "Accent")
+    LoadingText.TextSize = 28
+    
+    ColumnsContainer.Visible = false
     Blur.Size = 0
-    Tween(DarkBg, {BackgroundTransparency = 0.4}, 0.5)
-    Tween(Blur, {Size = 15}, 0.5)
+    DarkBg.BackgroundTransparency = 1
+    
+    task.spawn(function()
+        local pulse = TweenService:Create(LoadingText, TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {TextTransparency = 0.5})
+        pulse:Play()
+        task.wait(1.5)
+        pulse:Cancel()
+        LoadingText.TextTransparency = 0
+        LoadingText.Text = "Ready!"
+        task.wait(0.5)
+        
+        Tween(LoadingFrame, {BackgroundTransparency = 1}, 0.5)
+        Tween(LoadingText, {TextTransparency = 1}, 0.5)
+        
+        if Window.IsVisible then
+            Tween(DarkBg, {BackgroundTransparency = 0.4}, 0.5)
+            Tween(Blur, {Size = 15}, 0.5)
+            ColumnsContainer.Visible = true
+        end
+        
+        task.wait(0.5)
+        LoadingFrame:Destroy()
+    end)
     
     local layoutX = 50
     
     local SearchFrame = Instance.new("Frame")
     SearchFrame.Name = "SearchFrame"
-    SearchFrame.Parent = ScreenGui
+    SearchFrame.Parent = ColumnsContainer
     AssignTheme(SearchFrame, "BackgroundColor3", "CategoryHeader")
     SearchFrame.Size = UDim2.new(0, 300, 0, 35)
     SearchFrame.Position = UDim2.new(0.5, -150, 0, 20)
