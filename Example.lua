@@ -6,6 +6,7 @@ local Window = Library:CreateWindow({
 
 -- Build Categories
 local PlayerCat = Window:AddCategory({ Title = "LocalPlayer", Icon = Library.Icons.Player })
+local VisualsCat = Window:AddCategory({ Title = "Visuals", Icon = Library.Icons.Render })
 local SettingsCat = Window:AddCategory({ Title = "Settings", Icon = Library.Icons.Settings })
 
 -- LocalPlayer Category Modules
@@ -63,23 +64,53 @@ local flyConnection
 local FlyMod = PlayerCat:AddModule({ Name = "Fly", Default = false, Callback = function(val)
     local char = game.Players.LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if val and hrp then
+    local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+    
+    if val and hrp and humanoid then
+        if hrp:FindFirstChild("FlyBodyVelo") then hrp.FlyBodyVelo:Destroy() end
+        if hrp:FindFirstChild("FlyBodyGyro") then hrp.FlyBodyGyro:Destroy() end
+        
         local bv = Instance.new("BodyVelocity")
         bv.Name = "FlyBodyVelo"
         bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
         bv.Velocity = Vector3.new(0, 0, 0)
         bv.Parent = hrp
         
+        local bg = Instance.new("BodyGyro")
+        bg.Name = "FlyBodyGyro"
+        bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+        bg.P = 9e4
+        bg.CFrame = hrp.CFrame
+        bg.Parent = hrp
+        
+        humanoid.PlatformStand = true
+        
         flyConnection = game:GetService("RunService").RenderStepped:Connect(function()
             local cam = workspace.CurrentCamera
-            local moveVec = require(game.Players.LocalPlayer.PlayerScripts.PlayerModule):GetControls():GetMoveVector()
-            local dir = cam.CFrame.LookVector * (moveVec.Z * -1) + cam.CFrame.RightVector * moveVec.X
-            bv.Velocity = dir * 50
+            local uis = game:GetService("UserInputService")
+            
+            local moveDir = Vector3.new(0,0,0)
+            if uis:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + Vector3.new(0, 0, -1) end
+            if uis:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir + Vector3.new(0, 0, 1) end
+            if uis:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir + Vector3.new(-1, 0, 0) end
+            if uis:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + Vector3.new(1, 0, 0) end
+            if uis:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
+            if uis:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir + Vector3.new(0, -1, 0) end
+            
+            bg.CFrame = cam.CFrame
+            
+            local speed = 50
+            local relativeMove = cam.CFrame:VectorToWorldSpace(moveDir)
+            if moveDir.Magnitude > 0 then
+                bv.Velocity = relativeMove.Unit * speed
+            else
+                bv.Velocity = Vector3.new(0, 0, 0)
+            end
         end)
     else
-        if hrp and hrp:FindFirstChild("FlyBodyVelo") then
-            hrp.FlyBodyVelo:Destroy()
-        end
+        if humanoid then humanoid.PlatformStand = false end
+        if hrp and hrp:FindFirstChild("FlyBodyVelo") then hrp.FlyBodyVelo:Destroy() end
+        if hrp and hrp:FindFirstChild("FlyBodyGyro") then hrp.FlyBodyGyro:Destroy() end
         if flyConnection then
             flyConnection:Disconnect()
             flyConnection = nil
@@ -97,11 +128,7 @@ mouse.Button1Down:Connect(function()
         end
     end
 end)
-ClickTpMod:AddLabel("Hold LeftControl and Click to TP")
-
 -- Visuals Category Modules
-local VisualsCat = Window:AddCategory({ Title = "Visuals", Icon = Library.Icons.Render })
-
 local espHighlights = {}
 local EspMod = VisualsCat:AddModule({ Name = "ESP / Highlights", Default = false, Callback = function(val)
     if val then
@@ -133,7 +160,8 @@ game:GetService("RunService").RenderStepped:Connect(function()
                 if onScreen then
                     local line = tracers[p] or Drawing.new("Line")
                     line.Visible = true
-                    line.From = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y)
+                    local mouseLocation = game:GetService("UserInputService"):GetMouseLocation()
+                    line.From = mouseLocation
                     line.To = Vector2.new(vector.X, vector.Y)
                     line.Color = Color3.new(1, 0, 0)
                     line.Thickness = 2
@@ -149,6 +177,37 @@ game:GetService("RunService").RenderStepped:Connect(function()
         end
     else
         for _, t in pairs(tracers) do t.Visible = false end
+    end
+end)
+
+local ChamsMod = VisualsCat:AddModule({ Name = "Chams", Default = false })
+local chamsObjects = {}
+game:GetService("RunService").RenderStepped:Connect(function()
+    if Library.Toggles["Chams"] and Library.Toggles["Chams"].Value then
+        for _, p in pairs(game.Players:GetPlayers()) do
+            if p ~= game.Players.LocalPlayer and p.Character then
+                for _, part in pairs(p.Character:GetChildren()) do
+                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                        if not chamsObjects[part] then
+                            chamsObjects[part] = {
+                                Material = part.Material,
+                                Color = part.Color
+                            }
+                        end
+                        part.Material = Enum.Material.ForceField
+                        part.Color = Color3.fromRGB(208, 92, 227)
+                    end
+                end
+            end
+        end
+    else
+        for part, origData in pairs(chamsObjects) do
+            if part and part.Parent then
+                part.Material = origData.Material
+                part.Color = origData.Color
+            end
+        end
+        table.clear(chamsObjects)
     end
 end)
 

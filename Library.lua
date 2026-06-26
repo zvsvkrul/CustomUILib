@@ -390,9 +390,11 @@ function Library:CreateWindow(options)
                 local h = ContentLayout.AbsoluteContentSize.Y + 8
                 Tween(CatFrame, {Size = UDim2.new(0, 220, 0, 40 + h)}, 0.25)
                 Tween(ContentFrame, {Size = UDim2.new(1, 0, 0, h)}, 0.25)
+                Tween(ExpandBtn, {Rotation = 0}, 0.25)
             else
                 Tween(CatFrame, {Size = UDim2.new(0, 220, 0, 40)}, 0.25)
                 Tween(ContentFrame, {Size = UDim2.new(1, 0, 0, 0)}, 0.25)
+                Tween(ExpandBtn, {Rotation = 180}, 0.25)
             end
         end
         
@@ -400,7 +402,6 @@ function Library:CreateWindow(options)
         
         ExpandBtn.MouseButton1Click:Connect(function()
             Category.Expanded = not Category.Expanded
-            ExpandBtn.Image = Category.Expanded and Library.Icons.ArrowUp or Library.Icons.ArrowDown
             UpdateCatSize()
         end)
         
