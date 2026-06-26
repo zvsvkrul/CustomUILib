@@ -12,7 +12,7 @@ local Library = {
     Options = {},
     Toggles = {},
     Elements = {},
-    RegistryMap = {},
+    ThemeInstances = {},
     
     Theme = {
         Background = Color3.fromRGB(20, 17, 28),
@@ -38,9 +38,33 @@ local Library = {
         ArrowDown = "rbxassetid://10709790948",
         ArrowUp = "rbxassetid://10709791334",
         Check = "rbxassetid://10709790644",
-        X = "rbxassetid://10709791437"
+        X = "rbxassetid://10709791437",
+        Settings = "rbxassetid://10734954301"
     }
 }
+
+local function Tween(instance, properties, duration, style, dir)
+    duration = duration or 0.2
+    style = style or Enum.EasingStyle.Quad
+    dir = dir or Enum.EasingDirection.Out
+    local tween = TweenService:Create(instance, TweenInfo.new(duration, style, dir), properties)
+    tween:Play()
+    return tween
+end
+
+local function AssignTheme(instance, property, themeKey)
+    instance[property] = Library.Theme[themeKey]
+    table.insert(Library.ThemeInstances, {Instance = instance, Property = property, ThemeKey = themeKey})
+end
+
+function Library:SetThemeColor(themeKey, color)
+    Library.Theme[themeKey] = color
+    for _, data in ipairs(self.ThemeInstances) do
+        if data.Instance and data.Instance.Parent and data.ThemeKey == themeKey then
+            Tween(data.Instance, {[data.Property] = color}, 0.2)
+        end
+    end
+end
 
 local function MakeDraggable(topbarObject, object)
     local Dragging = nil
@@ -51,8 +75,7 @@ local function MakeDraggable(topbarObject, object)
     local function Update(input)
         local Delta = input.Position - DragStart
         local pos = UDim2.new(StartPosition.X.Scale, StartPosition.X.Offset + Delta.X, StartPosition.Y.Scale, StartPosition.Y.Offset + Delta.Y)
-        local Tween = TweenService:Create(object, TweenInfo.new(0.15), {Position = pos})
-        Tween:Play()
+        Tween(object, {Position = pos}, 0.15)
     end
 
     topbarObject.InputBegan:Connect(function(input)
@@ -82,15 +105,6 @@ local function MakeDraggable(topbarObject, object)
     end)
 end
 
-local function Tween(instance, properties, duration, style, dir)
-    duration = duration or 0.2
-    style = style or Enum.EasingStyle.Quad
-    dir = dir or Enum.EasingDirection.Out
-    local tween = TweenService:Create(instance, TweenInfo.new(duration, style, dir), properties)
-    tween:Play()
-    return tween
-end
-
 Library.SaveManager = {
     Folder = "CustomUILibConfigs",
     Ignore = {}
@@ -105,23 +119,17 @@ function Library.SaveManager:Save(name)
     if not isfolder(self.Folder) then makefolder(self.Folder) end
     local data = {}
     for idx, toggle in pairs(Library.Toggles) do
-        if not self.Ignore[idx] then
-            data[idx] = toggle.Value
-        end
+        if not self.Ignore[idx] then data[idx] = toggle.Value end
     end
     for idx, opt in pairs(Library.Options) do
-        if not self.Ignore[idx] then
-            data[idx] = opt.Value
-        end
+        if not self.Ignore[idx] then data[idx] = opt.Value end
     end
     writefile(self.Folder .. "/" .. name .. ".json", HttpService:JSONEncode(data))
 end
 function Library.SaveManager:Load(name)
     local file = self.Folder .. "/" .. name .. ".json"
     if isfile(file) then
-        local success, data = pcall(function()
-            return HttpService:JSONDecode(readfile(file))
-        end)
+        local success, data = pcall(function() return HttpService:JSONDecode(readfile(file)) end)
         if success and type(data) == "table" then
             for idx, value in pairs(data) do
                 if Library.Toggles[idx] then Library.Toggles[idx]:SetValue(value) end
@@ -132,6 +140,7 @@ function Library.SaveManager:Load(name)
 end
 
 local ProtectGui = protectgui or (syn and syn.protect_gui) or function() end
+
 function Library:CreateWindow(options)
     local Window = {
         Categories = {},
@@ -146,6 +155,7 @@ function Library:CreateWindow(options)
     
     local oldPlayer = LocalPlayer:WaitForChild("PlayerGui"):FindFirstChild(guiName)
     if oldPlayer then oldPlayer:Destroy() end
+    
     local Lighting = game:GetService("Lighting")
     local oldBlur = Lighting:FindFirstChild(guiName .. "Blur")
     if oldBlur then oldBlur:Destroy() end
@@ -155,6 +165,7 @@ function Library:CreateWindow(options)
     ScreenGui.ResetOnSpawn = false
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
     ScreenGui.DisplayOrder = 999999
+    ScreenGui.IgnoreGuiInset = true
     ProtectGui(ScreenGui)
     
     local success = pcall(function() ScreenGui.Parent = CoreGui end)
@@ -182,6 +193,12 @@ function Library:CreateWindow(options)
             Blur.Enabled = ScreenGui.Enabled
         end
     end)
+    
+    -- Loading animation
+    DarkBg.BackgroundTransparency = 1
+    Blur.Size = 0
+    Tween(DarkBg, {BackgroundTransparency = 0.4}, 0.5)
+    Tween(Blur, {Size = 15}, 0.5)
 
     local ColumnsContainer = Instance.new("Frame")
     ColumnsContainer.Name = "ColumnsContainer"
@@ -195,13 +212,11 @@ function Library:CreateWindow(options)
     local SearchFrame = Instance.new("Frame")
     SearchFrame.Name = "SearchFrame"
     SearchFrame.Parent = ScreenGui
-    SearchFrame.BackgroundColor3 = Library.Theme.CategoryHeader
+    AssignTheme(SearchFrame, "BackgroundColor3", "CategoryHeader")
     SearchFrame.Size = UDim2.new(0, 300, 0, 35)
     SearchFrame.Position = UDim2.new(0.5, -150, 0, 20)
-    
-    local SearchUICorner = Instance.new("UICorner")
-    SearchUICorner.CornerRadius = UDim.new(0, 6)
-    SearchUICorner.Parent = SearchFrame
+    SearchFrame.ClipsDescendants = true
+    Instance.new("UICorner", SearchFrame).CornerRadius = UDim.new(0, 6)
     
     local SearchIcon = Instance.new("ImageLabel")
     SearchIcon.Parent = SearchFrame
@@ -209,7 +224,7 @@ function Library:CreateWindow(options)
     SearchIcon.Position = UDim2.new(0, 8, 0.5, -10)
     SearchIcon.Size = UDim2.new(0, 20, 0, 20)
     SearchIcon.Image = Library.Icons.Search
-    SearchIcon.ImageColor3 = Library.Theme.TextDim
+    AssignTheme(SearchIcon, "ImageColor3", "TextDim")
     
     local SearchBox = Instance.new("TextBox")
     SearchBox.Parent = SearchFrame
@@ -219,8 +234,8 @@ function Library:CreateWindow(options)
     SearchBox.Font = Enum.Font.Gotham
     SearchBox.Text = ""
     SearchBox.PlaceholderText = "Search modules..."
-    SearchBox.TextColor3 = Library.Theme.Text
-    SearchBox.PlaceholderColor3 = Library.Theme.TextDim
+    AssignTheme(SearchBox, "TextColor3", "Text")
+    AssignTheme(SearchBox, "PlaceholderColor3", "TextDim")
     SearchBox.TextSize = 14
     SearchBox.TextXAlignment = Enum.TextXAlignment.Left
 
@@ -233,6 +248,11 @@ function Library:CreateWindow(options)
         end
     end)
     
+    -- Pop-in animation for SearchFrame
+    local ogPos = SearchFrame.Position
+    SearchFrame.Position = ogPos - UDim2.new(0, 0, 0, 50)
+    Tween(SearchFrame, {Position = ogPos}, 0.5, Enum.EasingStyle.Back)
+    
     function Window:AddCategory(catOptions)
         local Category = {
             Modules = {},
@@ -244,14 +264,17 @@ function Library:CreateWindow(options)
         local CatFrame = Instance.new("Frame")
         CatFrame.Name = Category.Name
         CatFrame.Parent = ColumnsContainer
-        CatFrame.BackgroundColor3 = Library.Theme.CategoryHeader
+        AssignTheme(CatFrame, "BackgroundColor3", "CategoryHeader")
         CatFrame.Position = UDim2.new(0, layoutX, 0, 80)
         CatFrame.Size = UDim2.new(0, 220, 0, 40)
         layoutX = layoutX + 240
+        Instance.new("UICorner", CatFrame).CornerRadius = UDim.new(0, 6)
         
-        local CatUICorner = Instance.new("UICorner")
-        CatUICorner.CornerRadius = UDim.new(0, 6)
-        CatUICorner.Parent = CatFrame
+        -- Pop-in animation for categories
+        local catOgPos = CatFrame.Position
+        CatFrame.Position = catOgPos + UDim2.new(0, 0, 0, 50)
+        CatFrame.BackgroundTransparency = 1
+        Tween(CatFrame, {Position = catOgPos, BackgroundTransparency = 0}, 0.6, Enum.EasingStyle.Back)
         
         local TitleIcon = Instance.new("ImageLabel")
         TitleIcon.Parent = CatFrame
@@ -259,7 +282,7 @@ function Library:CreateWindow(options)
         TitleIcon.Position = UDim2.new(0, 10, 0, 10)
         TitleIcon.Size = UDim2.new(0, 20, 0, 20)
         TitleIcon.Image = catOptions.Icon or Library.Icons.Combat
-        TitleIcon.ImageColor3 = Library.Theme.Accent
+        AssignTheme(TitleIcon, "ImageColor3", "Accent")
         
         local TitleLabel = Instance.new("TextLabel")
         TitleLabel.Parent = CatFrame
@@ -268,7 +291,7 @@ function Library:CreateWindow(options)
         TitleLabel.Size = UDim2.new(1, -70, 0, 40)
         TitleLabel.Font = Enum.Font.GothamMedium
         TitleLabel.Text = Category.Name
-        TitleLabel.TextColor3 = Library.Theme.Text
+        AssignTheme(TitleLabel, "TextColor3", "Text")
         TitleLabel.TextSize = 16
         TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
         
@@ -278,14 +301,14 @@ function Library:CreateWindow(options)
         ExpandBtn.Position = UDim2.new(1, -25, 0, 12)
         ExpandBtn.Size = UDim2.new(0, 16, 0, 16)
         ExpandBtn.Image = Library.Icons.ArrowUp
-        ExpandBtn.ImageColor3 = Library.Theme.TextDim
+        AssignTheme(ExpandBtn, "ImageColor3", "TextDim")
         
         MakeDraggable(CatFrame, CatFrame)
         
         local ContentFrame = Instance.new("Frame")
         ContentFrame.Name = "ContentFrame"
         ContentFrame.Parent = CatFrame
-        ContentFrame.BackgroundColor3 = Library.Theme.Background
+        AssignTheme(ContentFrame, "BackgroundColor3", "Background")
         ContentFrame.Position = UDim2.new(0, 0, 0, 40)
         ContentFrame.Size = UDim2.new(1, 0, 0, 0)
         ContentFrame.ClipsDescendants = true
@@ -306,11 +329,11 @@ function Library:CreateWindow(options)
         local function UpdateCatSize()
             if Category.Expanded then
                 local h = ContentLayout.AbsoluteContentSize.Y + 8
-                CatFrame.Size = UDim2.new(0, 220, 0, 40 + h)
-                ContentFrame.Size = UDim2.new(1, 0, 0, h)
+                Tween(CatFrame, {Size = UDim2.new(0, 220, 0, 40 + h)}, 0.25)
+                Tween(ContentFrame, {Size = UDim2.new(1, 0, 0, h)}, 0.25)
             else
-                CatFrame.Size = UDim2.new(0, 220, 0, 40)
-                ContentFrame.Size = UDim2.new(1, 0, 0, 0)
+                Tween(CatFrame, {Size = UDim2.new(0, 220, 0, 40)}, 0.25)
+                Tween(ContentFrame, {Size = UDim2.new(1, 0, 0, 0)}, 0.25)
             end
         end
         
@@ -345,12 +368,10 @@ function Library:CreateWindow(options)
             local ModFrame = Instance.new("Frame")
             ModFrame.Name = Module.Name
             ModFrame.Parent = ContentFrame
-            ModFrame.BackgroundColor3 = Library.Theme.ModuleBg
+            AssignTheme(ModFrame, "BackgroundColor3", "ModuleBg")
             ModFrame.Size = UDim2.new(1, 0, 0, 30)
-            
-            local ModUICorner = Instance.new("UICorner")
-            ModUICorner.CornerRadius = UDim.new(0, 4)
-            ModUICorner.Parent = ModFrame
+            ModFrame.ClipsDescendants = true
+            Instance.new("UICorner", ModFrame).CornerRadius = UDim.new(0, 4)
             
             local ModBtn = Instance.new("TextButton")
             ModBtn.Parent = ModFrame
@@ -365,27 +386,24 @@ function Library:CreateWindow(options)
             ModLabel.Size = UDim2.new(1, -40, 0, 30)
             ModLabel.Font = Enum.Font.Gotham
             ModLabel.Text = Module.Name
-            ModLabel.TextColor3 = Library.Theme.TextDim
+            AssignTheme(ModLabel, "TextColor3", "TextDim")
             ModLabel.TextSize = 14
             ModLabel.TextXAlignment = Enum.TextXAlignment.Center
             
             local StatusDot = Instance.new("Frame")
             StatusDot.Parent = ModFrame
-            StatusDot.BackgroundColor3 = Library.Theme.Off
+            AssignTheme(StatusDot, "BackgroundColor3", "Off")
             StatusDot.Position = UDim2.new(1, -15, 0.5, -3)
             StatusDot.Size = UDim2.new(0, 6, 0, 6)
-            local DotUICorner = Instance.new("UICorner")
-            DotUICorner.CornerRadius = UDim.new(1, 0)
-            DotUICorner.Parent = StatusDot
+            Instance.new("UICorner", StatusDot).CornerRadius = UDim.new(1, 0)
             
             local SettingsFrame = Instance.new("Frame")
             SettingsFrame.Name = "SettingsFrame"
             SettingsFrame.Parent = ModFrame
-            SettingsFrame.BackgroundColor3 = Library.Theme.ModuleExpandedBg
+            AssignTheme(SettingsFrame, "BackgroundColor3", "ModuleExpandedBg")
             SettingsFrame.Position = UDim2.new(0, 0, 0, 30)
             SettingsFrame.Size = UDim2.new(1, 0, 0, 0)
             SettingsFrame.ClipsDescendants = true
-            SettingsFrame.Visible = false
             
             local SettingsLayout = Instance.new("UIListLayout")
             SettingsLayout.Parent = SettingsFrame
@@ -402,21 +420,20 @@ function Library:CreateWindow(options)
             local function UpdateModSize()
                 if Module.Expanded then
                     local h = SettingsLayout.AbsoluteContentSize.Y + 8
-                    ModFrame.Size = UDim2.new(1, 0, 0, 30 + h)
-                    SettingsFrame.Size = UDim2.new(1, 0, 0, h)
+                    Tween(ModFrame, {Size = UDim2.new(1, 0, 0, 30 + h)}, 0.25)
+                    Tween(SettingsFrame, {Size = UDim2.new(1, 0, 0, h)}, 0.25)
                 else
-                    ModFrame.Size = UDim2.new(1, 0, 0, 30)
-                    SettingsFrame.Size = UDim2.new(1, 0, 0, 0)
+                    Tween(ModFrame, {Size = UDim2.new(1, 0, 0, 30)}, 0.25)
+                    Tween(SettingsFrame, {Size = UDim2.new(1, 0, 0, 0)}, 0.25)
                 end
-                UpdateCatSize()
             end
             
             SettingsLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(UpdateModSize)
 
             function Module:SetValue(val)
                 Module.Value = val
-                ModLabel.TextColor3 = val and Library.Theme.Accent or Library.Theme.TextDim
-                StatusDot.BackgroundColor3 = val and Library.Theme.On or Library.Theme.Off
+                AssignTheme(ModLabel, "TextColor3", val and "Accent" or "TextDim")
+                AssignTheme(StatusDot, "BackgroundColor3", val and "On" or "Off")
                 if modOptions.Callback then modOptions.Callback(val) end
             end
             
@@ -426,7 +443,6 @@ function Library:CreateWindow(options)
             
             ModBtn.MouseButton2Click:Connect(function()
                 Module.Expanded = not Module.Expanded
-                SettingsFrame.Visible = Module.Expanded
                 UpdateModSize()
             end)
             
@@ -449,7 +465,7 @@ function Library:CreateWindow(options)
                 SLabel.Size = UDim2.new(1, 0, 0, 15)
                 SLabel.Font = Enum.Font.Gotham
                 SLabel.Text = name .. ":"
-                SLabel.TextColor3 = Library.Theme.TextDim
+                AssignTheme(SLabel, "TextColor3", "TextDim")
                 SLabel.TextSize = 12
                 SLabel.TextXAlignment = Enum.TextXAlignment.Left
                 
@@ -459,20 +475,20 @@ function Library:CreateWindow(options)
                 SVal.Size = UDim2.new(1, 0, 0, 15)
                 SVal.Font = Enum.Font.Gotham
                 SVal.Text = tostring(Slider.Value)
-                SVal.TextColor3 = Library.Theme.Text
+                AssignTheme(SVal, "TextColor3", "Text")
                 SVal.TextSize = 12
                 SVal.TextXAlignment = Enum.TextXAlignment.Right
                 
                 local STrack = Instance.new("Frame")
                 STrack.Parent = SFrame
-                STrack.BackgroundColor3 = Library.Theme.Stroke
+                AssignTheme(STrack, "BackgroundColor3", "Stroke")
                 STrack.Position = UDim2.new(0, 0, 0, 20)
                 STrack.Size = UDim2.new(1, 0, 0, 4)
                 Instance.new("UICorner", STrack).CornerRadius = UDim.new(1,0)
                 
                 local SFill = Instance.new("Frame")
                 SFill.Parent = STrack
-                SFill.BackgroundColor3 = Library.Theme.Accent
+                AssignTheme(SFill, "BackgroundColor3", "Accent")
                 SFill.Size = UDim2.new((Slider.Value - opts.Min) / (opts.Max - opts.Min), 0, 1, 0)
                 Instance.new("UICorner", SFill).CornerRadius = UDim.new(1,0)
                 
@@ -509,7 +525,7 @@ function Library:CreateWindow(options)
                 function Slider:SetValue(val)
                     Slider.Value = val
                     SVal.Text = tostring(val)
-                    SFill.Size = UDim2.new((val - opts.Min) / (opts.Max - opts.Min), 0, 1, 0)
+                    Tween(SFill, {Size = UDim2.new((val - opts.Min) / (opts.Max - opts.Min), 0, 1, 0)}, 0.1)
                     if opts.Callback then opts.Callback(val) end
                 end
                 
@@ -531,7 +547,7 @@ function Library:CreateWindow(options)
                 TIcon.Position = UDim2.new(0, 0, 0.5, -7)
                 TIcon.Size = UDim2.new(0, 14, 0, 14)
                 TIcon.Image = Toggle.Value and Library.Icons.Check or Library.Icons.X
-                TIcon.ImageColor3 = Toggle.Value and Library.Theme.On or Library.Theme.Off
+                AssignTheme(TIcon, "ImageColor3", Toggle.Value and "On" or "Off")
                 
                 local TLabel = Instance.new("TextLabel")
                 TLabel.Parent = TFrame
@@ -540,7 +556,7 @@ function Library:CreateWindow(options)
                 TLabel.Size = UDim2.new(1, -20, 1, 0)
                 TLabel.Font = Enum.Font.Gotham
                 TLabel.Text = name
-                TLabel.TextColor3 = Library.Theme.TextDim
+                AssignTheme(TLabel, "TextColor3", "TextDim")
                 TLabel.TextSize = 12
                 TLabel.TextXAlignment = Enum.TextXAlignment.Left
                 
@@ -553,8 +569,8 @@ function Library:CreateWindow(options)
                 function Toggle:SetValue(val)
                     Toggle.Value = val
                     TIcon.Image = val and Library.Icons.Check or Library.Icons.X
-                    TIcon.ImageColor3 = val and Library.Theme.On or Library.Theme.Off
-                    TLabel.TextColor3 = val and Library.Theme.Text or Library.Theme.TextDim
+                    AssignTheme(TIcon, "ImageColor3", val and "On" or "Off")
+                    AssignTheme(TLabel, "TextColor3", val and "Text" or "TextDim")
                     if opts.Callback then opts.Callback(val) end
                 end
                 
@@ -566,7 +582,7 @@ function Library:CreateWindow(options)
             end
 
             function Module:AddDropdown(name, opts)
-                local Dropdown = { Value = opts.Default, Multi = opts.Multi or false }
+                local Dropdown = { Value = opts.Default, Multi = opts.Multi or false, Expanded = false }
                 if Dropdown.Multi and type(Dropdown.Value) ~= "table" then
                     Dropdown.Value = {}
                 end
@@ -575,7 +591,8 @@ function Library:CreateWindow(options)
                 local DFrame = Instance.new("Frame")
                 DFrame.Parent = SettingsFrame
                 DFrame.BackgroundTransparency = 1
-                DFrame.Size = UDim2.new(1, 0, 0, 30)
+                DFrame.Size = UDim2.new(1, 0, 0, 35)
+                DFrame.ClipsDescendants = true
                 
                 local DLabel = Instance.new("TextLabel")
                 DLabel.Parent = DFrame
@@ -583,31 +600,28 @@ function Library:CreateWindow(options)
                 DLabel.Size = UDim2.new(1, 0, 0, 15)
                 DLabel.Font = Enum.Font.Gotham
                 DLabel.Text = name .. ":"
-                DLabel.TextColor3 = Library.Theme.TextDim
+                AssignTheme(DLabel, "TextColor3", "TextDim")
                 DLabel.TextSize = 12
                 DLabel.TextXAlignment = Enum.TextXAlignment.Left
                 
                 local DBtn = Instance.new("TextButton")
                 DBtn.Parent = DFrame
-                DBtn.BackgroundColor3 = Library.Theme.Stroke
+                AssignTheme(DBtn, "BackgroundColor3", "Stroke")
                 DBtn.Position = UDim2.new(0, 0, 0, 15)
                 DBtn.Size = UDim2.new(1, 0, 0, 20)
                 DBtn.Font = Enum.Font.Gotham
                 DBtn.Text = type(Dropdown.Value)=="table" and "Multiple" or tostring(Dropdown.Value or "...")
-                DBtn.TextColor3 = Library.Theme.Text
+                AssignTheme(DBtn, "TextColor3", "Text")
                 DBtn.TextSize = 12
                 Instance.new("UICorner", DBtn).CornerRadius = UDim.new(0,4)
                 
                 local ListFrame = Instance.new("Frame")
-                ListFrame.Parent = SettingsFrame
-                ListFrame.BackgroundColor3 = Library.Theme.Stroke
+                ListFrame.Parent = DFrame
+                AssignTheme(ListFrame, "BackgroundColor3", "Stroke")
+                ListFrame.Position = UDim2.new(0, 0, 0, 35)
                 ListFrame.Size = UDim2.new(1, 0, 0, 0)
-                ListFrame.Visible = false
                 ListFrame.ClipsDescendants = true
                 Instance.new("UICorner", ListFrame).CornerRadius = UDim.new(0,4)
-                
-                local ListLayout = Instance.new("UIListLayout")
-                ListLayout.Parent = ListFrame
                 
                 local SearchBox = Instance.new("TextBox")
                 SearchBox.Parent = ListFrame
@@ -617,24 +631,31 @@ function Library:CreateWindow(options)
                 SearchBox.Font = Enum.Font.Gotham
                 SearchBox.PlaceholderText = "Search..."
                 SearchBox.Text = ""
-                SearchBox.TextColor3 = Library.Theme.Text
+                AssignTheme(SearchBox, "TextColor3", "Text")
                 SearchBox.TextSize = 12
                 SearchBox.TextXAlignment = Enum.TextXAlignment.Left
+                
+                local ItemContainer = Instance.new("Frame")
+                ItemContainer.Parent = ListFrame
+                ItemContainer.BackgroundTransparency = 1
+                ItemContainer.Position = UDim2.new(0, 0, 0, 20)
+                ItemContainer.Size = UDim2.new(1, 0, 1, -20)
+                
+                local ListLayout = Instance.new("UIListLayout")
+                ListLayout.Parent = ItemContainer
                 
                 local ItemBtns = {}
                 local function BuildList()
                     for _, v in pairs(ItemBtns) do v:Destroy() end
                     ItemBtns = {}
-                    local h = 20
                     for _, val in pairs(opts.Values) do
                         if SearchBox.Text == "" or tostring(val):lower():find(SearchBox.Text:lower()) then
                             local IBtn = Instance.new("TextButton")
-                            IBtn.Parent = ListFrame
+                            IBtn.Parent = ItemContainer
                             IBtn.BackgroundTransparency = 1
                             IBtn.Size = UDim2.new(1, -10, 0, 20)
-                            IBtn.Position = UDim2.new(0, 5, 0, h)
                             IBtn.Font = Enum.Font.Gotham
-                            IBtn.Text = tostring(val)
+                            IBtn.Text = "  " .. tostring(val)
                             
                             local isSelected = false
                             if Dropdown.Multi then
@@ -642,7 +663,7 @@ function Library:CreateWindow(options)
                             else
                                 isSelected = (Dropdown.Value == val)
                             end
-                            IBtn.TextColor3 = isSelected and Library.Theme.Accent or Library.Theme.TextDim
+                            AssignTheme(IBtn, "TextColor3", isSelected and "Accent" or "TextDim")
                             IBtn.TextSize = 12
                             IBtn.TextXAlignment = Enum.TextXAlignment.Left
                             
@@ -651,22 +672,22 @@ function Library:CreateWindow(options)
                                     Dropdown.Value[val] = not Dropdown.Value[val]
                                 else
                                     Dropdown.Value = val
-                                    ListFrame.Visible = false
-                                    DFrame.Size = UDim2.new(1, 0, 0, 35)
-                                    UpdateModSize()
+                                    Dropdown.Expanded = false
                                 end
                                 Dropdown:SetValue(Dropdown.Value)
                                 BuildList()
                             end)
                             table.insert(ItemBtns, IBtn)
-                            h = h + 20
                         end
                     end
-                    if ListFrame.Visible then
-                        ListFrame.Size = UDim2.new(1, 0, 0, h)
-                        DFrame.Size = UDim2.new(1, 0, 0, 35 + h)
+                    if Dropdown.Expanded then
+                        local h = 20 + ListLayout.AbsoluteContentSize.Y
+                        Tween(ListFrame, {Size = UDim2.new(1, 0, 0, h)}, 0.25)
+                        Tween(DFrame, {Size = UDim2.new(1, 0, 0, 35 + h)}, 0.25)
+                    else
+                        Tween(ListFrame, {Size = UDim2.new(1, 0, 0, 0)}, 0.25)
+                        Tween(DFrame, {Size = UDim2.new(1, 0, 0, 35)}, 0.25)
                     end
-                    UpdateModSize()
                 end
                 
                 SearchBox.Changed:Connect(function(p)
@@ -674,10 +695,7 @@ function Library:CreateWindow(options)
                 end)
                 
                 DBtn.MouseButton1Click:Connect(function()
-                    ListFrame.Visible = not ListFrame.Visible
-                    if not ListFrame.Visible then
-                        DFrame.Size = UDim2.new(1, 0, 0, 35)
-                    end
+                    Dropdown.Expanded = not Dropdown.Expanded
                     BuildList()
                 end)
                 
@@ -690,11 +708,77 @@ function Library:CreateWindow(options)
                     else
                         DBtn.Text = tostring(val)
                     end
+                    if not Dropdown.Expanded then
+                        Tween(ListFrame, {Size = UDim2.new(1, 0, 0, 0)}, 0.25)
+                        Tween(DFrame, {Size = UDim2.new(1, 0, 0, 35)}, 0.25)
+                    end
                     if opts.Callback then opts.Callback(val) end
                 end
                 
                 Dropdown:SetValue(Dropdown.Value)
                 return Dropdown
+            end
+            
+            function Module:AddButton(name, callback)
+                local BFrame = Instance.new("Frame")
+                BFrame.Parent = SettingsFrame
+                BFrame.BackgroundTransparency = 1
+                BFrame.Size = UDim2.new(1, 0, 0, 25)
+                
+                local Btn = Instance.new("TextButton")
+                Btn.Parent = BFrame
+                AssignTheme(Btn, "BackgroundColor3", "Stroke")
+                Btn.Size = UDim2.new(1, 0, 1, 0)
+                Btn.Font = Enum.Font.GothamMedium
+                Btn.Text = name
+                AssignTheme(Btn, "TextColor3", "Text")
+                Btn.TextSize = 12
+                Instance.new("UICorner", Btn).CornerRadius = UDim.new(0,4)
+                
+                Btn.MouseButton1Click:Connect(function()
+                    Tween(Btn, {BackgroundTransparency = 0.5}, 0.1, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+                    task.delay(0.1, function()
+                        Tween(Btn, {BackgroundTransparency = 0}, 0.1)
+                    end)
+                    if callback then callback() end
+                end)
+            end
+            
+            function Module:AddTextBox(name, default, callback)
+                local TextBox = { Value = default or "" }
+                local TFrame = Instance.new("Frame")
+                TFrame.Parent = SettingsFrame
+                TFrame.BackgroundTransparency = 1
+                TFrame.Size = UDim2.new(1, 0, 0, 35)
+                
+                local TLabel = Instance.new("TextLabel")
+                TLabel.Parent = TFrame
+                TLabel.BackgroundTransparency = 1
+                TLabel.Size = UDim2.new(1, 0, 0, 15)
+                TLabel.Font = Enum.Font.Gotham
+                TLabel.Text = name .. ":"
+                AssignTheme(TLabel, "TextColor3", "TextDim")
+                TLabel.TextSize = 12
+                TLabel.TextXAlignment = Enum.TextXAlignment.Left
+                
+                local TBox = Instance.new("TextBox")
+                TBox.Parent = TFrame
+                AssignTheme(TBox, "BackgroundColor3", "Stroke")
+                TBox.Position = UDim2.new(0, 0, 0, 15)
+                TBox.Size = UDim2.new(1, 0, 0, 20)
+                TBox.Font = Enum.Font.Gotham
+                TBox.Text = TextBox.Value
+                TBox.PlaceholderText = "Type here..."
+                AssignTheme(TBox, "TextColor3", "Text")
+                TBox.TextSize = 12
+                TBox.ClearTextOnFocus = false
+                Instance.new("UICorner", TBox).CornerRadius = UDim.new(0,4)
+                
+                TBox.FocusLost:Connect(function()
+                    TextBox.Value = TBox.Text
+                    if callback then callback(TextBox.Value) end
+                end)
+                return TextBox
             end
             
             return Module
@@ -713,8 +797,8 @@ function Library:CreateWindow(options)
     local Watermark = Instance.new("Frame")
     Watermark.Name = "Watermark"
     Watermark.Parent = HUDContainer
-    Watermark.BackgroundColor3 = Library.Theme.CategoryHeader
-    Watermark.Position = UDim2.new(0, 20, 0, 20)
+    AssignTheme(Watermark, "BackgroundColor3", "CategoryHeader")
+    Watermark.Position = UDim2.new(0, 10, 0, 10)
     Watermark.Size = UDim2.new(0, 300, 0, 30)
     Watermark.Visible = false
     Instance.new("UICorner", Watermark).CornerRadius = UDim.new(0, 6)
@@ -725,174 +809,44 @@ function Library:CreateWindow(options)
     WMText.Size = UDim2.new(1, -20, 1, 0)
     WMText.Position = UDim2.new(0, 10, 0, 0)
     WMText.Font = Enum.Font.GothamMedium
-    WMText.TextColor3 = Library.Theme.Text
+    AssignTheme(WMText, "TextColor3", "Text")
     WMText.TextSize = 14
     WMText.TextXAlignment = Enum.TextXAlignment.Left
     
     MakeDraggable(Watermark, Watermark)
     
-    function Library.HUD:SetWatermark(opts)
-        Watermark.Visible = true
-        WMText.Text = string.format("<font color='#d05ce3'>%s</font> | %s | %s", opts.Name or "nameclient", opts.Server or "localhost", opts.FPS or "60 fps")
+    local CurrentWatermarkOpts = nil
+    local frames = 0
+    local lastFps = 60
+    
+    RunService.RenderStepped:Connect(function() frames = frames + 1 end)
+    
+    task.spawn(function()
+        while true do
+            lastFps = frames
+            frames = 0
+            if CurrentWatermarkOpts and Watermark.Visible then
+                Library.HUD:UpdateWatermark()
+            end
+            task.wait(1)
+        end
+    end)
+    
+    function Library.HUD:UpdateWatermark()
+        if not CurrentWatermarkOpts then return end
+        local r, g, b = math.floor(Library.Theme.Accent.R*255), math.floor(Library.Theme.Accent.G*255), math.floor(Library.Theme.Accent.B*255)
+        local hex = string.format("%02X%02X%02X", r, g, b)
+        WMText.Text = string.format("<font color='#%s'>%s</font> | %s | %s fps", hex, CurrentWatermarkOpts.Name or "nameclient", CurrentWatermarkOpts.Server or "localhost", tostring(lastFps))
         WMText.RichText = true
         Watermark.Size = UDim2.new(0, WMText.TextBounds.X + 40, 0, 30)
     end
     
-    local hudLayoutY = 80
-    function Library.HUD:AddList(name, opts)
-        local List = {}
-        local LFrame = Instance.new("Frame")
-        LFrame.Name = name
-        LFrame.Parent = HUDContainer
-        LFrame.BackgroundColor3 = Library.Theme.CategoryHeader
-        LFrame.Position = UDim2.new(0, 20, 0, hudLayoutY)
-        LFrame.Size = UDim2.new(0, 150, 0, 30)
-        hudLayoutY = hudLayoutY + 60
-        Instance.new("UICorner", LFrame).CornerRadius = UDim.new(0, 6)
-        
-        MakeDraggable(LFrame, LFrame)
-        
-        local LIcon = Instance.new("ImageLabel")
-        LIcon.Parent = LFrame
-        LIcon.BackgroundTransparency = 1
-        LIcon.Position = UDim2.new(0, 8, 0, 8)
-        LIcon.Size = UDim2.new(0, 14, 0, 14)
-        LIcon.Image = opts.Icon or Library.Icons.Misc
-        LIcon.ImageColor3 = Library.Theme.Accent
-        
-        local LTitle = Instance.new("TextLabel")
-        LTitle.Parent = LFrame
-        LTitle.BackgroundTransparency = 1
-        LTitle.Position = UDim2.new(0, 30, 0, 0)
-        LTitle.Size = UDim2.new(1, -30, 0, 30)
-        LTitle.Font = Enum.Font.GothamMedium
-        LTitle.Text = name
-        LTitle.TextColor3 = Library.Theme.Text
-        LTitle.TextSize = 14
-        LTitle.TextXAlignment = Enum.TextXAlignment.Left
-        
-        local LContent = Instance.new("Frame")
-        LContent.Parent = LFrame
-        LContent.BackgroundTransparency = 1
-        LContent.Position = UDim2.new(0, 0, 0, 30)
-        LContent.Size = UDim2.new(1, 0, 0, 0)
-        
-        local LLayout = Instance.new("UIListLayout")
-        LLayout.Parent = LContent
-        
-        LLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            LContent.Size = UDim2.new(1, 0, 0, LLayout.AbsoluteContentSize.Y)
-            LFrame.Size = UDim2.new(0, 150, 0, 30 + LLayout.AbsoluteContentSize.Y + 5)
-        end)
-        
-        function List:AddItem(leftText, rightText, rightColor)
-            local IFrame = Instance.new("Frame")
-            IFrame.Parent = LContent
-            IFrame.BackgroundTransparency = 1
-            IFrame.Size = UDim2.new(1, 0, 0, 16)
-            
-            local ILeft = Instance.new("TextLabel")
-            ILeft.Parent = IFrame
-            ILeft.BackgroundTransparency = 1
-            ILeft.Position = UDim2.new(0, 8, 0, 0)
-            ILeft.Size = UDim2.new(0.5, -8, 1, 0)
-            ILeft.Font = Enum.Font.Gotham
-            ILeft.Text = leftText
-            ILeft.TextColor3 = Library.Theme.Text
-            ILeft.TextSize = 12
-            ILeft.TextXAlignment = Enum.TextXAlignment.Left
-            
-            local IRight = Instance.new("TextLabel")
-            IRight.Parent = IFrame
-            IRight.BackgroundTransparency = 1
-            IRight.Position = UDim2.new(0.5, 0, 0, 0)
-            IRight.Size = UDim2.new(0.5, -8, 1, 0)
-            IRight.Font = Enum.Font.Gotham
-            IRight.Text = rightText or ""
-            IRight.TextColor3 = rightColor or Library.Theme.TextDim
-            IRight.TextSize = 12
-            IRight.TextXAlignment = Enum.TextXAlignment.Right
-            
-            return {
-                Update = function(nl, nr, nc)
-                    if nl then ILeft.Text = nl end
-                    if nr then IRight.Text = nr end
-                    if nc then IRight.TextColor3 = nc end
-                end,
-                Remove = function() IFrame:Destroy() end
-            }
-        end
-        return List
+    function Library.HUD:SetWatermark(opts)
+        CurrentWatermarkOpts = opts
+        Watermark.Visible = true
+        self:UpdateWatermark()
     end
     
-    local TargetFrame = Instance.new("Frame")
-    TargetFrame.Name = "TargetHUD"
-    TargetFrame.Parent = HUDContainer
-    TargetFrame.BackgroundColor3 = Library.Theme.CategoryHeader
-    TargetFrame.Position = UDim2.new(1, -250, 1, -100)
-    TargetFrame.Size = UDim2.new(0, 220, 0, 60)
-    TargetFrame.Visible = false
-    Instance.new("UICorner", TargetFrame).CornerRadius = UDim.new(0, 6)
-    
-    local THead = Instance.new("ImageLabel")
-    THead.Parent = TargetFrame
-    THead.BackgroundColor3 = Library.Theme.ModuleBg
-    THead.Position = UDim2.new(0, 10, 0, 10)
-    THead.Size = UDim2.new(0, 40, 0, 40)
-    Instance.new("UICorner", THead).CornerRadius = UDim.new(0, 6)
-    
-    local TName = Instance.new("TextLabel")
-    TName.Parent = TargetFrame
-    TName.BackgroundTransparency = 1
-    TName.Position = UDim2.new(0, 60, 0, 10)
-    TName.Size = UDim2.new(1, -70, 0, 15)
-    TName.Font = Enum.Font.GothamMedium
-    TName.Text = "Target"
-    TName.TextColor3 = Library.Theme.Text
-    TName.TextSize = 14
-    TName.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local TDist = Instance.new("TextLabel")
-    TDist.Parent = TargetFrame
-    TDist.BackgroundTransparency = 1
-    TDist.Position = UDim2.new(0, 60, 0, 25)
-    TDist.Size = UDim2.new(1, -70, 0, 15)
-    TDist.Font = Enum.Font.Gotham
-    TDist.Text = "distance: 0,0 blocks"
-    TDist.TextColor3 = Library.Theme.TextDim
-    TDist.TextSize = 11
-    TDist.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local THBbg = Instance.new("Frame")
-    THBbg.Parent = TargetFrame
-    THBbg.BackgroundColor3 = Library.Theme.ModuleBg
-    THBbg.Position = UDim2.new(0, 60, 0, 45)
-    THBbg.Size = UDim2.new(1, -70, 0, 6)
-    Instance.new("UICorner", THBbg).CornerRadius = UDim.new(1, 0)
-    
-    local THBfill = Instance.new("Frame")
-    THBfill.Parent = THBbg
-    THBfill.BackgroundColor3 = Library.Theme.Accent
-    THBfill.Size = UDim2.new(1, 0, 1, 0)
-    Instance.new("UICorner", THBfill).CornerRadius = UDim.new(1, 0)
-    
-    MakeDraggable(TargetFrame, TargetFrame)
-    
-    function Library.HUD:SetTarget(opts)
-        if not opts then
-            TargetFrame.Visible = false
-            return
-        end
-        TargetFrame.Visible = true
-        TName.Text = opts.Name or "Target"
-        TDist.Text = "distance: " .. (opts.Distance or "0,0") .. " blocks"
-        THead.Image = opts.Image or ""
-        
-        local hp = opts.Health or 100
-        local maxhp = opts.MaxHealth or 100
-        Tween(THBfill, {Size = UDim2.new(math.clamp(hp/maxhp, 0, 1), 0, 1, 0)}, 0.2)
-    end
-
     return Window
 end
 

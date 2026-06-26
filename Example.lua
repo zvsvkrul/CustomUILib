@@ -6,8 +6,7 @@ local Window = Library:CreateWindow({
 
 -- Build Categories
 local PlayerCat = Window:AddCategory({ Title = "LocalPlayer", Icon = Library.Icons.Player })
-local CombatCat = Window:AddCategory({ Title = "Combat", Icon = Library.Icons.Combat })
-local RenderCat = Window:AddCategory({ Title = "Render", Icon = Library.Icons.Render })
+local SettingsCat = Window:AddCategory({ Title = "Settings", Icon = Library.Icons.Settings })
 
 -- LocalPlayer Category Modules
 local WalkSpeedMod = PlayerCat:AddModule({ Name = "WalkSpeed", Default = false })
@@ -27,27 +26,41 @@ JumpPowerMod:AddSlider("Power", { Default = 50, Min = 50, Max = 200, Rounding = 
     end
 end})
 
-local InfiniteJump = PlayerCat:AddModule({ Name = "Infinite Jump", Default = false })
+-- Settings Category: Theme Customization
+local ThemeMod = SettingsCat:AddModule({ Name = "Theme Configuration", Default = true })
 
--- Combat Category Modules
-local AimbotMod = CombatCat:AddModule({ Name = "Aimbot", Default = false })
-AimbotMod:AddDropdown("Target Part", { Values = {"Head", "HumanoidRootPart", "Torso"}, Default = "Head" })
-AimbotMod:AddToggle("Show FOV", { Default = true })
-AimbotMod:AddSlider("FOV Size", { Default = 100, Min = 10, Max = 500, Rounding = 0 })
+local function UpdateAccentColor()
+    local r = Library.Options["Accent R"].Value
+    local g = Library.Options["Accent G"].Value
+    local b = Library.Options["Accent B"].Value
+    Library:SetThemeColor("Accent", Color3.fromRGB(r, g, b))
+    
+    -- Refresh watermark text to match new hex code
+    Library.HUD:SetWatermark({
+        Name = "RobloxClient",
+        Server = "Public",
+        FPS = "60 fps"
+    })
+end
 
-local ESPMod = RenderCat:AddModule({ Name = "ESP", Default = true })
-ESPMod:AddToggle("Boxes", { Default = true })
-ESPMod:AddToggle("Names", { Default = true })
-ESPMod:AddToggle("Health", { Default = false })
-ESPMod:AddDropdown("Color Mode", { Values = {"Team", "Custom"}, Default = "Team" })
+ThemeMod:AddSlider("Accent R", { Default = 208, Min = 0, Max = 255, Rounding = 0, Callback = UpdateAccentColor })
+ThemeMod:AddSlider("Accent G", { Default = 92, Min = 0, Max = 255, Rounding = 0, Callback = UpdateAccentColor })
+ThemeMod:AddSlider("Accent B", { Default = 227, Min = 0, Max = 255, Rounding = 0, Callback = UpdateAccentColor })
 
--- HUD Elements setup (Keeping the watermark)
+local ConfigMod = SettingsCat:AddModule({ Name = "Config Manager", Default = true })
+Library.SaveManager:SetFolder("MyRobloxMenuConfigs")
+
+local ConfigNameBox = ConfigMod:AddTextBox("Config Name", "default")
+ConfigMod:AddButton("Save Config", function()
+    Library.SaveManager:Save(ConfigNameBox.Value)
+end)
+ConfigMod:AddButton("Load Config", function()
+    Library.SaveManager:Load(ConfigNameBox.Value)
+end)
+
+-- HUD Elements setup
 Library.HUD:SetWatermark({
     Name = "RobloxClient",
     Server = "Public",
     FPS = "60 fps"
 })
-
--- Load Config
-Library.SaveManager:SetFolder("RobloxClientConfigs")
--- Library.SaveManager:Load("default")
