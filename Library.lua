@@ -268,11 +268,17 @@ function Library:CreateWindow(options)
     AssignTheme(SearchFrame, "BackgroundColor3", "CategoryHeader")
     SearchFrame.Size = UDim2.new(0, 300, 0, 35)
     SearchFrame.Position = UDim2.new(0.5, -150, 0, 20)
-    SearchFrame.ClipsDescendants = true
     Instance.new("UICorner", SearchFrame).CornerRadius = UDim.new(0, 6)
     
+    local SearchClip = Instance.new("Frame")
+    SearchClip.Parent = SearchFrame
+    SearchClip.BackgroundTransparency = 1
+    SearchClip.Size = UDim2.new(1, 0, 1, 0)
+    SearchClip.ClipsDescendants = true
+    Instance.new("UICorner", SearchClip).CornerRadius = UDim.new(0, 6)
+    
     local SearchIcon = Instance.new("ImageLabel")
-    SearchIcon.Parent = SearchFrame
+    SearchIcon.Parent = SearchClip
     SearchIcon.BackgroundTransparency = 1
     SearchIcon.Position = UDim2.new(0, 8, 0.5, -10)
     SearchIcon.Size = UDim2.new(0, 20, 0, 20)
@@ -280,7 +286,7 @@ function Library:CreateWindow(options)
     AssignTheme(SearchIcon, "ImageColor3", "TextDim")
     
     local SearchBox = Instance.new("TextBox")
-    SearchBox.Parent = SearchFrame
+    SearchBox.Parent = SearchClip
     SearchBox.BackgroundTransparency = 1
     SearchBox.Position = UDim2.new(0, 35, 0, 0)
     SearchBox.Size = UDim2.new(1, -45, 1, 0)
