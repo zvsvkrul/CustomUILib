@@ -51,11 +51,17 @@ local ConfigMod = SettingsCat:AddModule({ Name = "Config Manager", Default = tru
 Library.SaveManager:SetFolder("MyRobloxMenuConfigs")
 
 local ConfigNameBox = ConfigMod:AddTextBox("Config Name", "default")
+local ConfigList = ConfigMod:AddDropdown("Saved Configs", { Values = Library.SaveManager:GetConfigs(), Default = "default" })
+
 ConfigMod:AddButton("Save Config", function()
     Library.SaveManager:Save(ConfigNameBox.Value)
+    ConfigList:SetValues(Library.SaveManager:GetConfigs())
 end)
-ConfigMod:AddButton("Load Config", function()
-    Library.SaveManager:Load(ConfigNameBox.Value)
+
+ConfigMod:AddButton("Load Selected Config", function()
+    if ConfigList.Value then
+        Library.SaveManager:Load(ConfigList.Value)
+    end
 end)
 
 -- HUD Elements setup

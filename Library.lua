@@ -66,7 +66,7 @@ function Library:SetThemeColor(themeKey, color)
     end
 end
 
-local function MakeDraggable(topbarObject, object)
+local function MakeDraggable(topbarObject, object, conditionFunc)
     local Dragging = nil
     local DragInput = nil
     local DragStart = nil
@@ -79,6 +79,7 @@ local function MakeDraggable(topbarObject, object)
     end
 
     topbarObject.InputBegan:Connect(function(input)
+        if conditionFunc and not conditionFunc() then return end
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             Dragging = true
             DragStart = input.Position
@@ -138,6 +139,18 @@ function Library.SaveManager:Load(name)
         end
     end
 end
+function Library.SaveManager:GetConfigs()
+    if not isfolder(self.Folder) then return {} end
+    local configs = {}
+    local success, files = pcall(function() return listfiles(self.Folder) end)
+    if success and files then
+        for _, file in ipairs(files) do
+            local name = file:match("([^/\\]+)%.json$")
+            if name then table.insert(configs, name) end
+        end
+    end
+    return configs
+end
 
 local ProtectGui = protectgui or (syn and syn.protect_gui) or function() end
 
@@ -186,11 +199,21 @@ function Library:CreateWindow(options)
     
     Window.ScreenGui = ScreenGui
     Window.ToggleKey = Enum.KeyCode.RightControl
+    Window.IsVisible = true
     
+    local ColumnsContainer = Instance.new("Frame")
+    ColumnsContainer.Name = "ColumnsContainer"
+    ColumnsContainer.Parent = ScreenGui
+    ColumnsContainer.BackgroundTransparency = 1
+    ColumnsContainer.Size = UDim2.new(1, 0, 1, 0)
+    ColumnsContainer.Position = UDim2.new(0, 0, 0, 0)
+
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if not gameProcessed and input.KeyCode == Window.ToggleKey then
-            ScreenGui.Enabled = not ScreenGui.Enabled
-            Blur.Enabled = ScreenGui.Enabled
+            Window.IsVisible = not Window.IsVisible
+            ColumnsContainer.Visible = Window.IsVisible
+            Blur.Enabled = Window.IsVisible
+            Tween(DarkBg, {BackgroundTransparency = Window.IsVisible and 0.4 or 1}, 0.2)
         end
     end)
     
@@ -199,13 +222,6 @@ function Library:CreateWindow(options)
     Blur.Size = 0
     Tween(DarkBg, {BackgroundTransparency = 0.4}, 0.5)
     Tween(Blur, {Size = 15}, 0.5)
-
-    local ColumnsContainer = Instance.new("Frame")
-    ColumnsContainer.Name = "ColumnsContainer"
-    ColumnsContainer.Parent = ScreenGui
-    ColumnsContainer.BackgroundTransparency = 1
-    ColumnsContainer.Size = UDim2.new(1, 0, 1, 0)
-    ColumnsContainer.Position = UDim2.new(0, 0, 0, 0)
     
     local layoutX = 50
     
@@ -390,13 +406,6 @@ function Library:CreateWindow(options)
             ModLabel.TextSize = 14
             ModLabel.TextXAlignment = Enum.TextXAlignment.Center
             
-            local StatusDot = Instance.new("Frame")
-            StatusDot.Parent = ModFrame
-            AssignTheme(StatusDot, "BackgroundColor3", "Off")
-            StatusDot.Position = UDim2.new(1, -15, 0.5, -3)
-            StatusDot.Size = UDim2.new(0, 6, 0, 6)
-            Instance.new("UICorner", StatusDot).CornerRadius = UDim.new(1, 0)
-            
             local SettingsFrame = Instance.new("Frame")
             SettingsFrame.Name = "SettingsFrame"
             SettingsFrame.Parent = ModFrame
@@ -433,7 +442,6 @@ function Library:CreateWindow(options)
             function Module:SetValue(val)
                 Module.Value = val
                 AssignTheme(ModLabel, "TextColor3", val and "Accent" or "TextDim")
-                AssignTheme(StatusDot, "BackgroundColor3", val and "On" or "Off")
                 if modOptions.Callback then modOptions.Callback(val) end
             end
             
@@ -715,6 +723,13 @@ function Library:CreateWindow(options)
                     if opts.Callback then opts.Callback(val) end
                 end
                 
+                function Dropdown:SetValues(newValues)
+                    opts.Values = newValues
+                    if Dropdown.Expanded then
+                        BuildList()
+                    end
+                end
+                
                 Dropdown:SetValue(Dropdown.Value)
                 return Dropdown
             end
@@ -813,7 +828,7 @@ function Library:CreateWindow(options)
     WMText.TextSize = 14
     WMText.TextXAlignment = Enum.TextXAlignment.Left
     
-    MakeDraggable(Watermark, Watermark)
+    MakeDraggable(Watermark, Watermark, function() return Window.IsVisible end)
     
     local CurrentWatermarkOpts = nil
     local frames = 0
