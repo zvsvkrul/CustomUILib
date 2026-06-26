@@ -839,6 +839,26 @@ function Library:CreateWindow(options)
                 return TextBox
             end
             
+            function Module:AddLabel(text)
+                local LFrame = Instance.new("Frame")
+                LFrame.Parent = SettingsFrame
+                LFrame.BackgroundTransparency = 1
+                LFrame.Size = UDim2.new(1, 0, 0, 20)
+                
+                local LLabel = Instance.new("TextLabel")
+                LLabel.Parent = LFrame
+                LLabel.BackgroundTransparency = 1
+                LLabel.Size = UDim2.new(1, 0, 1, 0)
+                LLabel.Font = Enum.Font.Gotham
+                LLabel.Text = text
+                AssignTheme(LLabel, "TextColor3", "TextDim")
+                LLabel.TextSize = 12
+                LLabel.TextXAlignment = Enum.TextXAlignment.Left
+                LLabel.TextWrapped = true
+                
+                return LLabel
+            end
+            
             return Module
         end
 

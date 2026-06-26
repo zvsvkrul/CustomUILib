@@ -9,26 +9,49 @@ local PlayerCat = Window:AddCategory({ Title = "LocalPlayer", Icon = Library.Ico
 local SettingsCat = Window:AddCategory({ Title = "Settings", Icon = Library.Icons.Settings })
 
 -- LocalPlayer Category Modules
-local WalkSpeedMod = PlayerCat:AddModule({ Name = "WalkSpeed", Default = false })
-WalkSpeedMod:AddSlider("Speed", { Default = 16, Min = 16, Max = 100, Rounding = 0, Callback = function(val)
+local WalkSpeedMod = PlayerCat:AddModule({ Name = "WalkSpeed", Default = false, Callback = function(val)
     local char = game.Players.LocalPlayer.Character
     if char and char:FindFirstChild("Humanoid") then
-        char.Humanoid.WalkSpeed = val
+        if val then
+            char.Humanoid.WalkSpeed = Library.Options["Speed"] and Library.Options["Speed"].Value or 16
+        else
+            char.Humanoid.WalkSpeed = 16
+        end
+    end
+end})
+WalkSpeedMod:AddSlider("Speed", { Default = 16, Min = 16, Max = 100, Rounding = 0, Callback = function(val)
+    if Library.Toggles["WalkSpeed"] and Library.Toggles["WalkSpeed"].Value then
+        local char = game.Players.LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.WalkSpeed = val
+        end
     end
 end})
 
-local JumpPowerMod = PlayerCat:AddModule({ Name = "JumpPower", Default = false })
-JumpPowerMod:AddSlider("Power", { Default = 50, Min = 50, Max = 200, Rounding = 0, Callback = function(val)
+local JumpPowerMod = PlayerCat:AddModule({ Name = "JumpPower", Default = false, Callback = function(val)
     local char = game.Players.LocalPlayer.Character
     if char and char:FindFirstChild("Humanoid") then
         char.Humanoid.UseJumpPower = true
-        char.Humanoid.JumpPower = val
+        if val then
+            char.Humanoid.JumpPower = Library.Options["Power"] and Library.Options["Power"].Value or 50
+        else
+            char.Humanoid.JumpPower = 50
+        end
+    end
+end})
+JumpPowerMod:AddSlider("Power", { Default = 50, Min = 50, Max = 200, Rounding = 0, Callback = function(val)
+    if Library.Toggles["JumpPower"] and Library.Toggles["JumpPower"].Value then
+        local char = game.Players.LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.UseJumpPower = true
+            char.Humanoid.JumpPower = val
+        end
     end
 end})
 
 local InfJumpMod = PlayerCat:AddModule({ Name = "Infinite Jump", Default = false })
 game:GetService("UserInputService").JumpRequest:Connect(function()
-    if Library.Options["Infinite Jump"] and Library.Options["Infinite Jump"].Value then
+    if Library.Toggles["Infinite Jump"] and Library.Toggles["Infinite Jump"].Value then
         local char = game.Players.LocalPlayer.Character
         if char and char:FindFirstChildOfClass("Humanoid") then
             char:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
@@ -36,9 +59,8 @@ game:GetService("UserInputService").JumpRequest:Connect(function()
     end
 end)
 
-local FlyMod = PlayerCat:AddModule({ Name = "Fly", Default = false })
 local flyConnection
-FlyMod:AddToggle("Enable Fly", { Default = false, Callback = function(val)
+local FlyMod = PlayerCat:AddModule({ Name = "Fly", Default = false, Callback = function(val)
     local char = game.Players.LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if val and hrp then
@@ -68,7 +90,7 @@ end})
 local ClickTpMod = PlayerCat:AddModule({ Name = "Click TP", Default = false })
 local mouse = game.Players.LocalPlayer:GetMouse()
 mouse.Button1Down:Connect(function()
-    if Library.Options["Click TP"] and Library.Options["Click TP"].Value and game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.LeftControl) then
+    if Library.Toggles["Click TP"] and Library.Toggles["Click TP"].Value and game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.LeftControl) then
         local char = game.Players.LocalPlayer.Character
         if char and char:FindFirstChild("HumanoidRootPart") and mouse.Hit then
             char.HumanoidRootPart.CFrame = CFrame.new(mouse.Hit.Position + Vector3.new(0, 3, 0))
@@ -80,9 +102,8 @@ ClickTpMod:AddLabel("Hold LeftControl and Click to TP")
 -- Visuals Category Modules
 local VisualsCat = Window:AddCategory({ Title = "Visuals", Icon = Library.Icons.Render })
 
-local EspMod = VisualsCat:AddModule({ Name = "ESP / Highlights", Default = false })
 local espHighlights = {}
-EspMod:AddToggle("Enable ESP", { Default = false, Callback = function(val)
+local EspMod = VisualsCat:AddModule({ Name = "ESP / Highlights", Default = false, Callback = function(val)
     if val then
         for _, v in pairs(game.Players:GetPlayers()) do
             if v ~= game.Players.LocalPlayer and v.Character then
@@ -105,7 +126,7 @@ end})
 local TracerMod = VisualsCat:AddModule({ Name = "Tracers", Default = false })
 local tracers = {}
 game:GetService("RunService").RenderStepped:Connect(function()
-    if Library.Options["Tracers"] and Library.Options["Tracers"].Value then
+    if Library.Toggles["Tracers"] and Library.Toggles["Tracers"].Value then
         for _, p in pairs(game.Players:GetPlayers()) do
             if p ~= game.Players.LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
                 local vector, onScreen = workspace.CurrentCamera:WorldToViewportPoint(p.Character.HumanoidRootPart.Position)
@@ -134,7 +155,7 @@ end)
 local ChinaHatMod = VisualsCat:AddModule({ Name = "China Hat", Default = false })
 local chinaHatPart
 game:GetService("RunService").RenderStepped:Connect(function()
-    if Library.Options["China Hat"] and Library.Options["China Hat"].Value then
+    if Library.Toggles["China Hat"] and Library.Toggles["China Hat"].Value then
         local char = game.Players.LocalPlayer.Character
         if char and char:FindFirstChild("Head") then
             if not chinaHatPart then
