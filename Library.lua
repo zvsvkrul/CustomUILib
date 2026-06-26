@@ -329,11 +329,25 @@ function Library:CreateWindow(options)
         layoutX = layoutX + 240
         Instance.new("UICorner", CatFrame).CornerRadius = UDim.new(0, 6)
         
-        -- Pop-in animation for categories
+        local CatGradient = Instance.new("UIGradient")
+        CatGradient.Parent = CatFrame
+        CatGradient.Rotation = 45
+        CatGradient.Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0, 0),
+            NumberSequenceKeypoint.new(1, 0.4)
+        }
+        
+        local CatStroke = Instance.new("UIStroke")
+        CatStroke.Parent = CatFrame
+        AssignTheme(CatStroke, "Color", "Stroke")
+        CatStroke.Thickness = 1
+        CatStroke.Transparency = 0.5
+        
+        -- Pop-in animation for categories (glassy transparency)
         local catOgPos = CatFrame.Position
         CatFrame.Position = catOgPos + UDim2.new(0, 0, 0, 50)
         CatFrame.BackgroundTransparency = 1
-        Tween(CatFrame, {Position = catOgPos, BackgroundTransparency = 0}, 0.6, Enum.EasingStyle.Back)
+        Tween(CatFrame, {Position = catOgPos, BackgroundTransparency = 0.25}, 0.6, Enum.EasingStyle.Back)
         
         local TitleIcon = Instance.new("ImageLabel")
         TitleIcon.Parent = CatFrame
@@ -348,7 +362,7 @@ function Library:CreateWindow(options)
         TitleLabel.BackgroundTransparency = 1
         TitleLabel.Position = UDim2.new(0, 35, 0, 0)
         TitleLabel.Size = UDim2.new(1, -70, 0, 40)
-        TitleLabel.Font = Enum.Font.GothamMedium
+        TitleLabel.Font = Enum.Font.GothamBold
         TitleLabel.Text = Category.Name
         AssignTheme(TitleLabel, "TextColor3", "Text")
         TitleLabel.TextSize = 16
@@ -368,6 +382,7 @@ function Library:CreateWindow(options)
         ContentFrame.Name = "ContentFrame"
         ContentFrame.Parent = CatFrame
         AssignTheme(ContentFrame, "BackgroundColor3", "Background")
+        ContentFrame.BackgroundTransparency = 0.5
         ContentFrame.Position = UDim2.new(0, 0, 0, 40)
         ContentFrame.Size = UDim2.new(1, 0, 0, 0)
         ContentFrame.ClipsDescendants = true
@@ -420,7 +435,9 @@ function Library:CreateWindow(options)
                 Name = modOptions.Name or "Module",
                 Value = modOptions.Default or false,
                 Expanded = false,
-                Settings = {}
+                Settings = {},
+                Keybind = nil,
+                Binding = false
             }
             table.insert(Category.Modules, Module)
             Library.Toggles[modOptions.Name] = Module
@@ -429,9 +446,16 @@ function Library:CreateWindow(options)
             ModFrame.Name = Module.Name
             ModFrame.Parent = ContentFrame
             AssignTheme(ModFrame, "BackgroundColor3", "ModuleBg")
+            ModFrame.BackgroundTransparency = 0.4
             ModFrame.Size = UDim2.new(1, 0, 0, 30)
             ModFrame.ClipsDescendants = true
             Instance.new("UICorner", ModFrame).CornerRadius = UDim.new(0, 4)
+            
+            local ModStroke = Instance.new("UIStroke")
+            ModStroke.Parent = ModFrame
+            AssignTheme(ModStroke, "Color", "Stroke")
+            ModStroke.Transparency = 0.8
+            ModStroke.Thickness = 1
             
             local ModBtn = Instance.new("TextButton")
             ModBtn.Parent = ModFrame
@@ -439,12 +463,26 @@ function Library:CreateWindow(options)
             ModBtn.Size = UDim2.new(1, 0, 0, 30)
             ModBtn.Text = ""
             
+            ModBtn.MouseEnter:Connect(function()
+                Tween(ModFrame, {BackgroundTransparency = 0.2}, 0.2)
+                if not Module.Value then
+                    Tween(ModStroke, {Transparency = 0.4}, 0.2)
+                end
+            end)
+            
+            ModBtn.MouseLeave:Connect(function()
+                Tween(ModFrame, {BackgroundTransparency = 0.4}, 0.2)
+                if not Module.Value then
+                    Tween(ModStroke, {Transparency = 0.8}, 0.2)
+                end
+            end)
+            
             local ModLabel = Instance.new("TextLabel")
             ModLabel.Parent = ModFrame
             ModLabel.BackgroundTransparency = 1
             ModLabel.Position = UDim2.new(0, 10, 0, 0)
             ModLabel.Size = UDim2.new(1, -40, 0, 30)
-            ModLabel.Font = Enum.Font.Gotham
+            ModLabel.Font = Enum.Font.GothamSemibold
             ModLabel.Text = Module.Name
             AssignTheme(ModLabel, "TextColor3", "TextDim")
             ModLabel.TextSize = 14
@@ -454,6 +492,7 @@ function Library:CreateWindow(options)
             SettingsFrame.Name = "SettingsFrame"
             SettingsFrame.Parent = ModFrame
             AssignTheme(SettingsFrame, "BackgroundColor3", "ModuleExpandedBg")
+            SettingsFrame.BackgroundTransparency = 0.6
             SettingsFrame.Position = UDim2.new(0, 0, 0, 30)
             SettingsFrame.Size = UDim2.new(1, 0, 0, 0)
             SettingsFrame.ClipsDescendants = true
@@ -469,6 +508,55 @@ function Library:CreateWindow(options)
             SettingsPadding.PaddingBottom = UDim.new(0, 4)
             SettingsPadding.PaddingLeft = UDim.new(0, 6)
             SettingsPadding.PaddingRight = UDim.new(0, 6)
+
+            local BindBtn = Instance.new("TextButton")
+            BindBtn.Parent = SettingsFrame
+            AssignTheme(BindBtn, "BackgroundColor3", "Stroke")
+            BindBtn.Size = UDim2.new(1, 0, 0, 20)
+            BindBtn.Font = Enum.Font.Gotham
+            BindBtn.Text = "Bind: None"
+            AssignTheme(BindBtn, "TextColor3", "TextDim")
+            BindBtn.TextSize = 12
+            Instance.new("UICorner", BindBtn).CornerRadius = UDim.new(0, 4)
+            BindBtn.LayoutOrder = -1 -- Always at the top
+
+            local function UpdateBindText()
+                local keyName = Module.Keybind and Module.Keybind.Name or "None"
+                BindBtn.Text = "Bind: " .. keyName
+                ModLabel.Text = Module.Name .. (Module.Keybind and (" [" .. keyName .. "]") or "")
+            end
+
+            local function StartBinding()
+                if Module.Binding then return end
+                Module.Binding = true
+                BindBtn.Text = "Bind: ..."
+                ModLabel.Text = Module.Name .. " [...]"
+            end
+
+            BindBtn.MouseButton1Click:Connect(StartBinding)
+
+            ModBtn.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton3 then
+                    StartBinding()
+                end
+            end)
+
+            UserInputService.InputBegan:Connect(function(input, gameProcessed)
+                if Module.Binding then
+                    if input.UserInputType == Enum.UserInputType.Keyboard then
+                        local key = input.KeyCode
+                        if key == Enum.KeyCode.Backspace or key == Enum.KeyCode.Escape then
+                            Module.Keybind = nil
+                        else
+                            Module.Keybind = key
+                        end
+                        Module.Binding = false
+                        UpdateBindText()
+                    end
+                elseif not gameProcessed and Module.Keybind and input.KeyCode == Module.Keybind then
+                    Module:SetValue(not Module.Value)
+                end
+            end)
 
             local function UpdateModSize()
                 if Module.Expanded then
@@ -486,6 +574,15 @@ function Library:CreateWindow(options)
             function Module:SetValue(val)
                 Module.Value = val
                 AssignTheme(ModLabel, "TextColor3", val and "Accent" or "TextDim")
+                
+                if val then
+                    local pulse = TweenService:Create(ModLabel, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, true), {TextTransparency = 0.5})
+                    pulse:Play()
+                    Tween(ModStroke, {Transparency = 0}, 0.2)
+                else
+                    Tween(ModStroke, {Transparency = 0.8}, 0.2)
+                end
+                
                 if modOptions.Callback then modOptions.Callback(val) end
             end
             
@@ -515,7 +612,7 @@ function Library:CreateWindow(options)
                 SLabel.Parent = SFrame
                 SLabel.BackgroundTransparency = 1
                 SLabel.Size = UDim2.new(1, 0, 0, 15)
-                SLabel.Font = Enum.Font.Gotham
+                SLabel.Font = Enum.Font.GothamSemibold
                 SLabel.Text = name .. ":"
                 AssignTheme(SLabel, "TextColor3", "TextDim")
                 SLabel.TextSize = 12
@@ -525,7 +622,7 @@ function Library:CreateWindow(options)
                 SVal.Parent = SFrame
                 SVal.BackgroundTransparency = 1
                 SVal.Size = UDim2.new(1, 0, 0, 15)
-                SVal.Font = Enum.Font.Gotham
+                SVal.Font = Enum.Font.GothamBold
                 SVal.Text = tostring(Slider.Value)
                 AssignTheme(SVal, "TextColor3", "Text")
                 SVal.TextSize = 12
@@ -544,12 +641,23 @@ function Library:CreateWindow(options)
                 SFill.Size = UDim2.new((Slider.Value - opts.Min) / (opts.Max - opts.Min), 0, 1, 0)
                 Instance.new("UICorner", SFill).CornerRadius = UDim.new(1,0)
                 
+                local SGradient = Instance.new("UIGradient")
+                SGradient.Parent = SFill
+                SGradient.Rotation = 90
+                SGradient.Transparency = NumberSequence.new{
+                    NumberSequenceKeypoint.new(0, 0),
+                    NumberSequenceKeypoint.new(1, 0.3)
+                }
+                
                 local SBtn = Instance.new("TextButton")
                 SBtn.Parent = SFrame
                 SBtn.BackgroundTransparency = 1
                 SBtn.Position = UDim2.new(0, 0, 0, 15)
                 SBtn.Size = UDim2.new(1, 0, 0, 15)
                 SBtn.Text = ""
+                
+                SBtn.MouseEnter:Connect(function() Tween(STrack, {BackgroundTransparency = 0.5}, 0.2) end)
+                SBtn.MouseLeave:Connect(function() Tween(STrack, {BackgroundTransparency = 0}, 0.2) end)
                 
                 local function UpdateSlider(input)
                     local percent = math.clamp((input.Position.X - STrack.AbsolutePosition.X) / STrack.AbsoluteSize.X, 0, 1)
@@ -577,7 +685,8 @@ function Library:CreateWindow(options)
                 function Slider:SetValue(val)
                     Slider.Value = val
                     SVal.Text = tostring(val)
-                    Tween(SFill, {Size = UDim2.new((val - opts.Min) / (opts.Max - opts.Min), 0, 1, 0)}, 0.1)
+                    -- Elastic bouncing slider fill physics
+                    Tween(SFill, {Size = UDim2.new((val - opts.Min) / (opts.Max - opts.Min), 0, 1, 0)}, 0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
                     if opts.Callback then opts.Callback(val) end
                 end
                 
@@ -606,7 +715,7 @@ function Library:CreateWindow(options)
                 TLabel.BackgroundTransparency = 1
                 TLabel.Position = UDim2.new(0, 20, 0, 0)
                 TLabel.Size = UDim2.new(1, -20, 1, 0)
-                TLabel.Font = Enum.Font.Gotham
+                TLabel.Font = Enum.Font.GothamSemibold
                 TLabel.Text = name
                 AssignTheme(TLabel, "TextColor3", "TextDim")
                 TLabel.TextSize = 12
@@ -618,11 +727,19 @@ function Library:CreateWindow(options)
                 TBtn.Size = UDim2.new(1, 0, 1, 0)
                 TBtn.Text = ""
                 
+                TBtn.MouseEnter:Connect(function() Tween(TLabel, {TextTransparency = 0.2}, 0.2) end)
+                TBtn.MouseLeave:Connect(function() Tween(TLabel, {TextTransparency = 0}, 0.2) end)
+                
                 function Toggle:SetValue(val)
                     Toggle.Value = val
                     TIcon.Image = val and Library.Icons.Check or Library.Icons.X
                     AssignTheme(TIcon, "ImageColor3", val and "On" or "Off")
                     AssignTheme(TLabel, "TextColor3", val and "Text" or "TextDim")
+                    
+                    if val then
+                        local pulse = TweenService:Create(TIcon, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, true), {Size = UDim2.new(0, 18, 0, 18), Position = UDim2.new(0, -2, 0.5, -9)})
+                        pulse:Play()
+                    end
                     if opts.Callback then opts.Callback(val) end
                 end
                 
@@ -650,7 +767,7 @@ function Library:CreateWindow(options)
                 DLabel.Parent = DFrame
                 DLabel.BackgroundTransparency = 1
                 DLabel.Size = UDim2.new(1, 0, 0, 15)
-                DLabel.Font = Enum.Font.Gotham
+                DLabel.Font = Enum.Font.GothamSemibold
                 DLabel.Text = name .. ":"
                 AssignTheme(DLabel, "TextColor3", "TextDim")
                 DLabel.TextSize = 12
@@ -661,11 +778,14 @@ function Library:CreateWindow(options)
                 AssignTheme(DBtn, "BackgroundColor3", "Stroke")
                 DBtn.Position = UDim2.new(0, 0, 0, 15)
                 DBtn.Size = UDim2.new(1, 0, 0, 20)
-                DBtn.Font = Enum.Font.Gotham
+                DBtn.Font = Enum.Font.GothamSemibold
                 DBtn.Text = type(Dropdown.Value)=="table" and "Multiple" or tostring(Dropdown.Value or "...")
                 AssignTheme(DBtn, "TextColor3", "Text")
                 DBtn.TextSize = 12
                 Instance.new("UICorner", DBtn).CornerRadius = UDim.new(0,4)
+                
+                DBtn.MouseEnter:Connect(function() Tween(DBtn, {BackgroundTransparency = 0.5}, 0.2) end)
+                DBtn.MouseLeave:Connect(function() Tween(DBtn, {BackgroundTransparency = 0}, 0.2) end)
                 
                 local ListFrame = Instance.new("Frame")
                 ListFrame.Parent = DFrame
@@ -705,6 +825,7 @@ function Library:CreateWindow(options)
                             local IBtn = Instance.new("TextButton")
                             IBtn.Parent = ItemContainer
                             IBtn.BackgroundTransparency = 1
+                            AssignTheme(IBtn, "BackgroundColor3", "Hover")
                             IBtn.Size = UDim2.new(1, -10, 0, 20)
                             IBtn.Font = Enum.Font.Gotham
                             IBtn.Text = "  " .. tostring(val)
@@ -718,6 +839,9 @@ function Library:CreateWindow(options)
                             AssignTheme(IBtn, "TextColor3", isSelected and "Accent" or "TextDim")
                             IBtn.TextSize = 12
                             IBtn.TextXAlignment = Enum.TextXAlignment.Left
+                            
+                            IBtn.MouseEnter:Connect(function() Tween(IBtn, {BackgroundTransparency = 0.5}, 0.15) end)
+                            IBtn.MouseLeave:Connect(function() Tween(IBtn, {BackgroundTransparency = 1}, 0.15) end)
                             
                             IBtn.MouseButton1Click:Connect(function()
                                 if Dropdown.Multi then
@@ -734,8 +858,8 @@ function Library:CreateWindow(options)
                     end
                     if Dropdown.Expanded then
                         local h = 20 + ListLayout.AbsoluteContentSize.Y
-                        Tween(ListFrame, {Size = UDim2.new(1, 0, 0, h)}, 0.25)
-                        Tween(DFrame, {Size = UDim2.new(1, 0, 0, 35 + h)}, 0.25)
+                        Tween(ListFrame, {Size = UDim2.new(1, 0, 0, h)}, 0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+                        Tween(DFrame, {Size = UDim2.new(1, 0, 0, 35 + h)}, 0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
                     else
                         Tween(ListFrame, {Size = UDim2.new(1, 0, 0, 0)}, 0.25)
                         Tween(DFrame, {Size = UDim2.new(1, 0, 0, 35)}, 0.25)
@@ -788,17 +912,18 @@ function Library:CreateWindow(options)
                 Btn.Parent = BFrame
                 AssignTheme(Btn, "BackgroundColor3", "Stroke")
                 Btn.Size = UDim2.new(1, 0, 1, 0)
-                Btn.Font = Enum.Font.GothamMedium
+                Btn.Font = Enum.Font.GothamBold
                 Btn.Text = name
                 AssignTheme(Btn, "TextColor3", "Text")
                 Btn.TextSize = 12
                 Instance.new("UICorner", Btn).CornerRadius = UDim.new(0,4)
                 
+                Btn.MouseEnter:Connect(function() Tween(Btn, {BackgroundTransparency = 0.3}, 0.15) end)
+                Btn.MouseLeave:Connect(function() Tween(Btn, {BackgroundTransparency = 0}, 0.15) end)
+                
                 Btn.MouseButton1Click:Connect(function()
-                    Tween(Btn, {BackgroundTransparency = 0.5}, 0.1, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
-                    task.delay(0.1, function()
-                        Tween(Btn, {BackgroundTransparency = 0}, 0.1)
-                    end)
+                    local pulse = TweenService:Create(Btn, TweenInfo.new(0.1, Enum.EasingStyle.Linear, Enum.EasingDirection.Out, 0, true), {TextTransparency = 0.5})
+                    pulse:Play()
                     if callback then callback() end
                 end)
             end
@@ -814,7 +939,7 @@ function Library:CreateWindow(options)
                 TLabel.Parent = TFrame
                 TLabel.BackgroundTransparency = 1
                 TLabel.Size = UDim2.new(1, 0, 0, 15)
-                TLabel.Font = Enum.Font.Gotham
+                TLabel.Font = Enum.Font.GothamSemibold
                 TLabel.Text = name .. ":"
                 AssignTheme(TLabel, "TextColor3", "TextDim")
                 TLabel.TextSize = 12
@@ -825,7 +950,7 @@ function Library:CreateWindow(options)
                 AssignTheme(TBox, "BackgroundColor3", "Stroke")
                 TBox.Position = UDim2.new(0, 0, 0, 15)
                 TBox.Size = UDim2.new(1, 0, 0, 20)
-                TBox.Font = Enum.Font.Gotham
+                TBox.Font = Enum.Font.GothamSemibold
                 TBox.Text = TextBox.Value
                 TBox.PlaceholderText = "Type here..."
                 AssignTheme(TBox, "TextColor3", "Text")
